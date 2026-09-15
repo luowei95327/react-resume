@@ -27,6 +27,20 @@ code {
   cursor: pointer;
 }
 
+/* The resume pane keeps the "code editor" monospace look without nesting
+   block level markdown inside <pre><code>. */
+.introduceBody {
+  margin: 0;
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+/* Raw markdown shown while typing has to keep its own line breaks. */
+.introduceBody--raw {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .skipAnimation:hover {
   background: #526579;
 }
@@ -43,5 +57,46 @@ code {
   *::after {
     -webkit-transition: none !important;
     transition: none !important;
+  }
+}
+
+/* A resume is something people print or save as PDF: drop the screen-only
+   editor pane and the 3D presentation, and show link targets on paper. */
+@media print {
+  html {
+    background: #fff;
+    color: #000;
+    -webkit-perspective: none !important;
+    perspective: none !important;
+  }
+
+  .styleEdit,
+  .skipAnimation {
+    display: none !important;
+  }
+
+  .introduceEdit {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+    color: #000 !important;
+    -webkit-transform: none !important;
+    transform: none !important;
+  }
+
+  .introduceEdit a {
+    color: #000 !important;
+    text-decoration: none;
+  }
+
+  .introduceEdit a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.9em;
+    word-break: break-all;
   }
 }

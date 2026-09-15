@@ -1,35 +1,42 @@
-import React, { memo, useCallback, useMemo, useRef, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism.css'
 import { useAutoScrollToEnd } from '../hooks/useAutoScrollToEnd';
 
 /*
- * Tokenizing the whole stylesheet on every animation frame is quadratic work:
- * by the end of the intro Prism had re-parsed the growing string ~2400 times.
- * Re-tokenizing every HIGHLIGHT_STEP characters and escaping the short tail in
- * between keeps the colors in sync while cutting that work by ~50x.
+ * Tokenizing the whole stylesheet on every frame is quadratic work: typing out
+ * the default stylesheet would re-tokenize a growing string ~2400 times.
+ *
+ * While the text streams in we tokenize only up to the last HIGHLIGHT_STEP
+ * boundary and escape the short tail, which cuts that work by ~50x. Once the
+ * text settles, an exact highlight replaces it so the trailing characters are
+ * colored too.
  */
 const HIGHLIGHT_STEP = 48;
+const SETTLE_MS = 160;
 
 const escapeHtml = (value) =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-function useHighlightedCss(css) {
-  const cacheRef = useRef({ boundary: 0, html: '' });
+const tokenize = (css) => Prism.highlight(css, Prism.languages.css, 'css');
 
-  return useMemo(() => {
-    // The source got shorter (a user edit, or the skip button): start over.
-    if (css.length < cacheRef.current.boundary) {
-      cacheRef.current = { boundary: 0, html: '' };
-    }
-    if (cacheRef.current.boundary === 0 || css.length - cacheRef.current.boundary >= HIGHLIGHT_STEP) {
-      cacheRef.current = {
-        boundary: css.length,
-        html: Prism.highlight(css, Prism.languages.css, 'css'),
-      };
-    }
-    return cacheRef.current.html + escapeHtml(css.slice(cacheRef.current.boundary));
+function useHighlightedCss(css) {
+  const boundary = Math.floor(css.length / HIGHLIGHT_STEP) * HIGHLIGHT_STEP;
+  const prefix = css.slice(0, boundary);
+  const prefixHtml = useMemo(() => tokenize(prefix), [prefix]);
+
+  const [settled, setSettled] = useState(null);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSettled({ source: css, html: tokenize(css) });
+    }, SETTLE_MS);
+    return () => clearTimeout(timer);
   }, [css]);
+
+  if (settled && settled.source === css) {
+    return settled.html;
+  }
+  return prefixHtml + escapeHtml(css.slice(boundary));
 }
 
 const StyleSheet = ({ currentStyle, isStyleEditable, editStyle }) => {
@@ -64,6 +71,10 @@ const StyleSheet = ({ currentStyle, isStyleEditable, editStyle }) => {
       ref={rootRef}
       suppressContentEditableWarning
       contentEditable={isStyleEditable}
+      role={isStyleEditable ? 'textbox' : undefined}
+      aria-multiline={isStyleEditable ? 'true' : undefined}
+      aria-label={isStyleEditable ? '简历样式表（可编辑的 CSS）' : undefined}
+      tabIndex={isStyleEditable ? 0 : -1}
       onFocus={handleFocus}
       onBlur={handleBlur}
       onInput={handleInput}

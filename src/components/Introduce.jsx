@@ -16,19 +16,23 @@ const Introduce = (props) => {
 
   useAutoScrollToEnd(rootRef, currentIntroduce);
 
+  // The markdown output is block level HTML (h1/p/ul/...), so it is rendered
+  // into a div: <pre><code> around it is invalid nesting and made a screen
+  // reader announce the whole resume as one code sample.
   return (
-    <div className='introduceEdit' ref={rootRef}>
-      <pre>
-        {isMD ? (
-          // Sanitized in src/lib/markdown.js - never raw marked output.
-          <code dangerouslySetInnerHTML={{ __html: html }}></code>
-        ) : (
-          // Plain text while typing: React escapes children, so this path does
-          // not go through innerHTML at all.
-          <code>{currentIntroduce}</code>
-        )}
-      </pre>
-    </div>
+    <section className='introduceEdit' aria-label='简历内容' ref={rootRef}>
+      {isMD ? (
+        // Sanitized in src/lib/markdown.js - never raw marked output.
+        <div
+          className='introduceBody'
+          dangerouslySetInnerHTML={{ __html: html }}
+        />
+      ) : (
+        // Plain text while typing: React escapes children, so this path does
+        // not go through innerHTML at all.
+        <div className='introduceBody introduceBody--raw'>{currentIntroduce}</div>
+      )}
+    </section>
   )
 }
 

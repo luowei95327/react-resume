@@ -20,7 +20,12 @@ const ALLOWED_ATTR = [
 
 // A private Marked instance keeps this configuration from leaking into the
 // global singleton that marked exports as `setOptions`/`use` targets.
-const markdown = new Marked({ gfm: true, breaks: false });
+//
+// `breaks` mirrors GitHub's line break behaviour: the resume source is written
+// with meaningful single line breaks (one contact link per line, headings above
+// their content) and used to be shown inside a <pre>, so soft breaks have to
+// stay line breaks now that the output renders as normal HTML.
+const markdown = new Marked({ gfm: true, breaks: true });
 
 // `afterSanitizeAttributes` runs once DOMPurify has already dropped dangerous
 // URLs, so links that still have an href here are safe to harden.

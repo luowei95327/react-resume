@@ -1,35 +1,66 @@
 # 一份动态简历
 
-## 简介
+左边"敲"出一份 CSS，右边同时渲染出 Markdown 简历——仿 [strml.net](http://strml.net/) 的动态简历页面，用 React + Redux 实现。
 
-最近网上看到别人做的一份动态简历，觉得比较有意思，于是自己基于create-react-app简单的模仿了一下。
+预览： https://luowei95327.github.io/react-resume/
 
-之后可能会用vue再写一遍，先埋个坑再说。
+## 特性
 
-原作品链接： http://strml.net/
+- 打字机动画：样式表与简历内容逐字出现，动画中有「跳过动画」按钮，并尊重系统的 `prefers-reduced-motion` 设置
+- 样式可编辑：动画结束后左侧 CSS 面板可直接修改，右侧简历实时重排
+- 简历内容用 Markdown 书写，渲染结果经过净化，链接自动加上 `rel="noopener noreferrer"`
+- 提供打印样式，可以直接 Cmd/Ctrl + P 打印或另存为 PDF
 
-## 预览
+## 环境要求
 
-https://github.com/luowei95327/react-resume/build/index.html
+- Node.js 20 或更高版本（CI 使用 22）
+- pnpm（仓库声明了 `packageManager: pnpm@11.19.0`）
 
 ## 运行
 
-运行前请保证安装了 Nodejs 和 NPM 环境：
+```bash
+pnpm install
+pnpm dev        # 本地开发，默认 http://localhost:5173
+pnpm build      # 产物输出到 build/
+pnpm preview    # 预览 build/ 产物
+```
 
-> npm install 
-> 
-> npm start
+质量检查：
 
-本地浏览： http://localhost:3000/
+```bash
+pnpm lint       # ESLint（含 react-hooks 规则）
+pnpm test       # Vitest + jsdom
+```
 
-项目里面build文件夹中是打包好了的我自己的简历。
+## 定制自己的简历
 
-你可以在 src/assets/data.js 修改数据生成只有运行 <code>npm run build</code>命令重新生成自己的简历，或者基于此项目进行二次开发。
+编辑 `src/assets/data.js`：
 
-## 说明
+- `introduce`：Markdown 格式的简历正文
+- `styles`：分三段播放的 CSS，最后一段结束后左侧面板变为可编辑
 
-此项目是使用的react官方脚手架create-react-app，里面集成了es6、es7、redux、react-router等等，不用我们自己再使用webpack自己去配置，我们只用专注于开发。
+## 目录结构
 
-使用默认配置打包时发现发布到github上的页面资源都是404，查看配置源码得知默认会被替换为空，然后变为 "/" 目录，如果是生成环境需要在 <code>package.json</code> 里面配置 
+```
+src/
+  assets/data.js              简历内容与样式脚本
+  components/
+    Resume.jsx                动画编排（requestAnimationFrame）
+    StyleSheet.jsx            左侧 CSS 面板（Prism 高亮，可编辑）
+    Introduce.jsx             右侧简历面板（Markdown 渲染）
+  hooks/useAutoScrollToEnd.js 滚动到底部
+  lib/
+    markdown.js               marked + DOMPurify 渲染管线
+    typing.js                 动画时长与逐字显示计算
+  redux/                      内容、样式、渲染模式的状态
+```
 
-        "homepage": "."
+## 部署
+
+`pnpm build` 生成静态产物到 `build/`，把该目录发布到 GitHub Pages 或任意静态托管即可。注意 `build/` 需要重新生成后再提交/发布，不要直接引用仓库根目录的 `index.html`（那是给 Vite 开发服务器用的入口）。
+
+## 关于安全
+
+marked 会原样透传 Markdown 里的 HTML 与 `javascript:` 链接，且其 `sanitize` 选项已被移除，因此所有渲染都经过 `src/lib/markdown.js` 里的 DOMPurify 白名单。若要接入外部内容（CMS、接口、他人提供的数据），请保持这条管线不变，并考虑在托管层再加一层 CSP。
+
+Fork 自 https://github.com/luowei95327/react-resume

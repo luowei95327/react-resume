@@ -25,7 +25,7 @@ const FORBIDDEN_TAGS = [
 ];
 
 const isJavascriptUrl = (value) =>
-  value.replace(/[\s\u0000-\u001f]/g, '').toLowerCase().startsWith('javascript:');
+  value.replace(/\s/g, '').toLowerCase().startsWith('javascript:');
 
 /** Parse sanitized HTML and assert nothing executable survived. */
 function expectNoExecutableMarkup(html) {

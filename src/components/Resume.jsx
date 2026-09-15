@@ -29,7 +29,9 @@ const Resume = () => {
   const frameRef = useRef(0);
   const resolveRef = useRef(null);
   const cancelledRef = useRef(false);
-  const [isAnimating, setIsAnimating] = useState(true);
+  // Visitors who asked their OS for reduced motion get the final resume
+  // immediately, so the skip button never renders for them.
+  const [isAnimating, setIsAnimating] = useState(() => !prefersReducedMotion());
 
   /**
    * Reveal `text` from `fromLength` to its full length within the stage budget.
@@ -73,7 +75,10 @@ const Resume = () => {
 
   useEffect(() => {
     if (prefersReducedMotion()) {
-      skip();
+      dispatch(setStyle(fullStyle));
+      dispatch(setIntroduce(introduce));
+      dispatch(setMarkdown(true));
+      dispatch(setStyleEditable(true));
       return undefined;
     }
 
@@ -97,7 +102,7 @@ const Resume = () => {
       cancelAnimationFrame(frameRef.current);
       resolveRef.current?.(false);
     };
-  }, [dispatch, skip, type]);
+  }, [dispatch, type]);
 
   const editStyle = useCallback((style) => {
     dispatch(setStyle(style));
