@@ -59,8 +59,9 @@ html {
   height: calc(95vh - 2px);
 }
 /* 作为一个程序员，我们不可以太沉闷哦~~，给自己的代码加一点色彩吧 */
-.token.comment{ color: #857F6B; font-style: italic; }
-.token.selector{ color: #E86E75; }
+/* 注释与选择器色已调整为满足 WCAG AA 对比度（旧值在 #303030 上仅 3.30:1 / 4.35:1） */
+.token.comment{ color: #9CA3AF; font-style: italic; }
+.token.selector{ color: #F08A8F; }
 .token.property{ color: #F78C6C; }
 .token.punctuation{ color: #88DCFE; }
 .token.function{ color: #82AAFF; }
@@ -123,12 +124,12 @@ html{
   margin: 0 auto;
 }
 .introduceEdit h2{
-  display: inline-block;
+  display: table;
   border-bottom: 1px solid;
   margin: 1em 0 .5em;
 }
 .introduceEdit h3{
-	display: inline-block;
+	display: block;
 	margin: .5em 0;
 }
 .introduceEdit ul{
