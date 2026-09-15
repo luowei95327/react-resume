@@ -1,108 +1,124 @@
-import React, { Component, Fragment } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-import { setMarkdown, setStyle, setIntroduce, setStyleEditable } from '../redux/actions/action';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { setIntroduce, setMarkdown, setStyle, setStyleEditable } from '../redux/actions/action';
 import { introduce, styles } from '../assets/data';
 import Introduce from './Introduce';
 import StyleSheet from './StyleSheet';
+import { stageDuration, visibleSlice } from '../lib/typing';
 
-class Resume extends Component {
-  state = {
-    interval: 40,
-  }
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
-  componentDidMount = () => {
-    // this.props.setIntroduce(introduce);
-    // this.props.setStyle(styles.join());
-    // this.props.setMarkdown(true);
-    // this.props.setStyleEditable(true);
-    this.start();
-  }
+// The whole point of the animation is the two panes filling up, but it should
+// never make the resume unreadable for long: the stages below take ~18s in
+// total instead of the ~121s the per-character setTimeout loop needed.
+const styleAfterFirstStage = styles[0] + styles[1];
+const fullStyle = styles.join('');
 
-  showIntroduce = () => {
-    return new Promise((resolve, reject) => {
-      let show = () => {
-        const { currentIntroduce } = this.props;
-        if(currentIntroduce.length < introduce.length) {
-          this.props.setIntroduce(introduce.substring(0, currentIntroduce.length+1));
-          setTimeout(show, this.state.interval);
-        } else {
-          resolve();
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia(REDUCED_MOTION_QUERY).matches;
+
+const Resume = () => {
+  const dispatch = useDispatch();
+  const currentStyle = useSelector((state) => state.currentStyle);
+  const currentIntroduce = useSelector((state) => state.currentIntroduce);
+  const isMD = useSelector((state) => state.isMD);
+  const isStyleEditable = useSelector((state) => state.isStyleEditable);
+
+  const frameRef = useRef(0);
+  const resolveRef = useRef(null);
+  const cancelledRef = useRef(false);
+  const [isAnimating, setIsAnimating] = useState(true);
+
+  /**
+   * Reveal `text` from `fromLength` to its full length within the stage budget.
+   * The visible slice is derived from elapsed time, so a slow frame catches up
+   * instead of falling behind.
+   */
+  const type = useCallback((text, fromLength, onUpdate) => {
+    return new Promise((resolve) => {
+      resolveRef.current = resolve;
+      const duration = stageDuration(text.length - fromLength);
+      const startedAt = performance.now();
+
+      const step = (now) => {
+        if (cancelledRef.current) {
+          resolve(false);
+          return;
         }
-      }
-      show();
-    })
-  }
-
-  showStyles = (style, next) => {
-    const { currentStyle } = this.props;
-    if(next) {
-      style = currentStyle + style
-    }
-    return new Promise((resolve, reject) => {
-      let show = () => {
-        const { currentStyle } = this.props;
-        if(!style) return ;
-        if(currentStyle.length < style.length) {
-          this.props.setStyle(style.substring(0, currentStyle.length+1));
-          setTimeout(show, this.state.interval);
+        const progress = duration === 0 ? 1 : (now - startedAt) / duration;
+        onUpdate(visibleSlice(text, fromLength, progress));
+        if (progress < 1) {
+          frameRef.current = requestAnimationFrame(step);
         } else {
-          resolve();
+          resolve(true);
         }
-      }
-      show();
-    })
-  }
+      };
 
-  async start() {
-    try {
-      await(this.showStyles(styles[0]));
-      await(this.showIntroduce());
-      await(this.showStyles(styles[1], true));
-      this.props.setMarkdown(true);
-      await(this.showStyles(styles[2], true));
-      this.props.setStyleEditable(true);
-    } catch (err) {
-      console.error(err)
+      frameRef.current = requestAnimationFrame(step);
+    });
+  }, []);
+
+  const skip = useCallback(() => {
+    cancelledRef.current = true;
+    cancelAnimationFrame(frameRef.current);
+    resolveRef.current?.(false);
+    dispatch(setStyle(fullStyle));
+    dispatch(setIntroduce(introduce));
+    dispatch(setMarkdown(true));
+    dispatch(setStyleEditable(true));
+    setIsAnimating(false);
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (prefersReducedMotion()) {
+      skip();
+      return undefined;
     }
-  }
 
-  editStyle = (style) => {
-    this.props.setStyle(style);
-  }
+    const run = async () => {
+      if (!(await type(styles[0], 0, (value) => dispatch(setStyle(value))))) return;
+      if (!(await type(introduce, 0, (value) => dispatch(setIntroduce(value))))) return;
+      if (!(await type(styleAfterFirstStage, styles[0].length, (value) => dispatch(setStyle(value))))) return;
 
-  render() {
-    const { currentStyle, currentIntroduce, isMD, isStyleEditable } = this.props;
-    return(
-      <Fragment>
-        <StyleSheet 
-          currentStyle={currentStyle} 
-          isStyleEditable={isStyleEditable}
-          editStyle={this.editStyle}
-        />
-        <Introduce currentIntroduce={currentIntroduce} isMD={isMD}/>
-        <style>{currentStyle}</style>
-      </Fragment>
-    )
-  }
+      dispatch(setMarkdown(true));
+
+      if (!(await type(fullStyle, styleAfterFirstStage.length, (value) => dispatch(setStyle(value))))) return;
+
+      dispatch(setStyleEditable(true));
+      setIsAnimating(false);
+    };
+
+    run();
+
+    return () => {
+      cancelledRef.current = true;
+      cancelAnimationFrame(frameRef.current);
+      resolveRef.current?.(false);
+    };
+  }, [dispatch, skip, type]);
+
+  const editStyle = useCallback((style) => {
+    dispatch(setStyle(style));
+  }, [dispatch]);
+
+  return (
+    <React.Fragment>
+      <StyleSheet
+        currentStyle={currentStyle}
+        isStyleEditable={isStyleEditable}
+        editStyle={editStyle}
+      />
+      <Introduce currentIntroduce={currentIntroduce} isMD={isMD}/>
+      <style>{currentStyle}</style>
+      {isAnimating && (
+        <button type="button" className="skipAnimation" onClick={skip}>
+          跳过动画
+        </button>
+      )}
+    </React.Fragment>
+  )
 }
 
-const mapStateToProps = ({currentIntroduce, currentStyle, isMD, isStyleEditable}) => {
-  return {
-    currentIntroduce,
-    currentStyle,
-    isMD,
-    isStyleEditable,
-  }
-}
-
-const mapDispatchToProps = (dispatch) => {
-  return {
-		setMarkdown: bindActionCreators(setMarkdown, dispatch),
-		setStyle: bindActionCreators(setStyle, dispatch),
-    setIntroduce: bindActionCreators(setIntroduce, dispatch),
-    setStyleEditable: bindActionCreators(setStyleEditable, dispatch),
-	}
-}
-
-export default connect(mapStateToProps, mapDispatchToProps)(Resume);
+export default Resume;

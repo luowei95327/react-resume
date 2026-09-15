@@ -11,3 +11,37 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
     monospace;
 }
+
+/* Lets visitors skip the intro animation instead of waiting it out. */
+.skipAnimation {
+  position: fixed;
+  right: 1vw;
+  bottom: 2vh;
+  z-index: 10;
+  padding: 0.5em 1em;
+  border: 1px solid #8899a6;
+  border-radius: 4px;
+  background: rgba(66, 82, 97, 0.92);
+  color: #dedede;
+  font: inherit;
+  cursor: pointer;
+}
+
+.skipAnimation:hover {
+  background: #526579;
+}
+
+.skipAnimation:focus-visible {
+  outline: 2px solid #88dcfe;
+  outline-offset: 2px;
+}
+
+/* data.js animates every element; honour the OS "reduce motion" setting. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    -webkit-transition: none !important;
+    transition: none !important;
+  }
+}
